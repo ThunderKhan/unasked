@@ -181,3 +181,67 @@ def test_explicit_raw_preview_for_fictional_fixtures_only():
     assert result["validated"] is False
     assert result["diagnostics"]["raw_preview_start"].startswith('{"feature_label"')
     assert len(result["diagnostics"]["raw_preview_end"]) <= 160
+
+
+def test_schema_errors_report_safe_field_paths_for_valid_json():
+    import json
+    response = SimpleNamespace(
+        message=SimpleNamespace(content=json.dumps({
+            "feature_label": "Booking",
+            "questions": [{
+                "gap_key": "booking.availability",
+                "question": "What time slots may users reserve?",
+                "why_it_matters": "The schedule rules determine which times are bookable.",
+                "priority": 1,
+                "source_excerpt": None,
+                "caution": "This caution is in the wrong location.",
+            }],
+        })),
+        done_reason="stop", eval_count=235, prompt_eval_count=282,
+    )
+    result = run_model(
+        client=FakeOllamaClient(response), model="test",
+        notes="Fictional booking requirements", decisions=[], mode="baseline",
+        num_ctx=2048, num_predict=512, format_mode="json",
+    )
+    assert result["validated"] is False
+    assert result["error_type"] == "ValidationError"
+    assert result["diagnostics"]["json_syntax_valid"] is True
+    errors = result["diagnostics"]["schema_errors"]
+    assert {"path": ["caution"], "type": "missing"} in errors
+    assert {"path": ["questions", 0, "caution"], "type": "extra_forbidden"} in errors
+    assert "This caution is in the wrong location" not in str(result)
+
+
+def test_syntax_errors_identified_separately_from_schema_errors():
+    response = SimpleNamespace(
+        message=SimpleNamespace(content='{"feature_label": "Incomplete"'),
+        done_reason="length", eval_count=512, prompt_eval_count=100,
+    )
+    result = run_model(
+        client=FakeOllamaClient(response), model="test",
+        notes="Fictional booking requirements", decisions=[], mode="baseline",
+        num_ctx=2048, num_predict=512, format_mode="json",
+    )
+    assert result["validated"] is False
+    assert result["error_type"] == "JSONDecodeError"
+    assert result["diagnostics"]["json_syntax_valid"] is False
+    assert "schema_errors" not in result["diagnostics"]
+    assert result["diagnostics"]["possible_output_truncation"] is True
+
+
+def test_json_mode_instructions_enforce_top_level_caution():
+    response = SimpleNamespace(
+        message=SimpleNamespace(content='{"feature_label":"Booking","questions":[],"caution":"Verify assumptions."}'),
+        done_reason="stop", eval_count=40, prompt_eval_count=100,
+    )
+    client = FakeOllamaClient(response)
+    result = run_model(
+        client=client, model="test", notes="Fictional booking requirements",
+        decisions=[], mode="baseline", num_ctx=2048, num_predict=512,
+        format_mode="json",
+    )
+    assert result["validated"]
+    system = client.last_kwargs["messages"][0]["content"]
+    assert '"caution" appears ONCE' in system
+    assert '"source_excerpt": null' in system
