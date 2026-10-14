@@ -123,6 +123,41 @@ $r.cases[0].results.generic_baseline.diagnostics | ConvertTo-Json -Depth 8
 
 If the result validates, review each question for unansweredness, relevance and hallucinated premises. In particular, the fictional booking notes **already specify that cancellation is not allowed**, and double-booking remains unresolved. A structurally valid question about whether cancellation is allowed would still be an AI-quality failure.
 
+## Semantic isolation: model reasoning without JSON
+
+Gemma's specialized booking run in JSON mode returned a syntactically valid **empty object** (`{}`) in 2 generated tokens. A valid JSON container with no required keys is still an invalid Unasked result. We should **separate the model's ability to find missing requirements from its ability to obey our output schema**, rather than piling more instructions onto a 4B model.
+
+This branch includes `evaluation/semantic_probe.py`, an independent **plain-text** experiment. It intentionally sends **no `format` option** to Ollama. It prints the actual questions immediately after the inference call finishes; reports go into gitignored `evaluation/results/`. It does **not** replace the strict JSON validation needed in the eventual application.
+
+Run one specialized prompt on the same fictional booking notes:
+
+~~~powershell
+git pull --ff-only
+python -m pytest evaluation/tests -q
+python -u -m evaluation.semantic_probe --model gemma3:4b --case booking --mode risk
+~~~
+
+If the model produces a useful question about booking conflicts or another material unanswered decision, run the **generic plain-text baseline** on the same notes:
+
+~~~powershell
+python -u -m evaluation.semantic_probe --model gemma3:4b --case booking --mode generic --output evaluation/results/semantic-generic.json
+~~~
+
+Only **after** the model finds worthwhile unanswered requirements do the separate answered-question test:
+
+~~~powershell
+python -u -m evaluation.semantic_probe --model gemma3:4b --case booking --mode risk --after-answer --output evaluation/results/semantic-after-answer.json
+~~~
+
+Interpretation:
+
+- **Plain-text risk prompt finds a critical gap:** Model may be capable; the full JSON contract/prompt is the obstruction. Test a minimal schema next.
+- **Generic finds a gap but risk prompt doesn't:** Specialized ranking or restrictions need simplification.
+- **Neither finds useful gaps:** Do not engineer around formatting; compare a different small model or revise the core approach.
+- **Already answered topics are re-asked:** State handling is not sufficient. M0 remains **REVISE**.
+
+Plain text is a **diagnostic**, not the final API response format. Any text copied from model output could echo input notes, so use **only the synthetic fixture cases** in this probe. Review genuine usefulness manually; the script is intentionally not an automated success grader.
+
 ## What the three sample cases do
 
 | Feature | Known missing decision | Already answered in notes | Follow-up decision used for retest |
