@@ -12,10 +12,10 @@ Instead of summarizing the conversation or generating a PRD, it helps the develo
 
 | Document | Purpose |
 | --- | --- |
-| [Scope](devpost/scope.md) | User, unique idea, one core loop, and strict exclusions |
-| [PRD](devpost/prd.md) | One-screen journey, behaviors, important error states, acceptance criteria |
-| [Technical spec](devpost/spec.md) | Proposed architecture, data contract, files and failure handling |
-| [MVP & validation](devpost/mvp.md) | Delivery slices, definition of done, demo, and comparison against baselines |
+| [Scope](docs/scope.md) | User, unique idea, one core loop, and strict exclusions |
+| [PRD](docs/prd.md) | One-screen journey, behaviors, important error states, acceptance criteria |
+| [Technical spec](docs/spec.md) | Proposed architecture, data contract, files and failure handling |
+| [MVP & validation](docs/mvp.md) | Delivery slices, definition of done, demo, and comparison against baselines |
 
 **The MVP:** paste notes about one software feature → get 0–3 specific unanswered questions with reasons → record an answer or dismiss a question → re-analyze.
 
@@ -27,7 +27,7 @@ An existing open-weight model interprets client language and recommends context-
 
 ## Origin of planning process
 
-The planning sequence adapts the [Devpost Learn: Build With AI Basics agent skills](https://github.com/challengepost/learn-ai-basics), especially `2-scope`, `3-prd`, and `4-spec`, to a separate Hacktoberfest Side Hustle project. Their curriculum is [MIT-licensed](https://github.com/challengepost/learn-ai-basics/blob/main/LICENSE) (Copyright (c) 2026 Devpost). These documents are our project drafts, **not** claims that the original curriculum has been formally completed or approved.
+The planning sequence adapts the [Devpost Learn: Build With AI Basics agent skills](https://github.com/challengepost/learn-ai-basics), especially `2-scope`, `3-prd`, and `4-spec`, to this DEV Community Hacktoberfest Side Hustle challenge project (not a Devpost challenge). Their curriculum is [MIT-licensed](https://github.com/challengepost/learn-ai-basics/blob/main/LICENSE) (Copyright (c) 2026 Devpost). These documents are our project drafts, **not** claims that the original curriculum has been formally completed or approved.
 
 If using a compatible local coding agent, the upstream skills may be installed separately:
 

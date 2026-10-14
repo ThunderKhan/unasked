@@ -196,7 +196,7 @@ unasked/
 ├── evaluation/
 │   ├── cases.json                  # Curated synthetic notes + ground truth
 │   └── evaluate.py                 # Baseline vs Unasked comparison
-├── devpost/
+├── docs/              # Planning documents for the DEV challenge
 │   ├── scope.md
 │   ├── prd.md
 │   ├── spec.md
