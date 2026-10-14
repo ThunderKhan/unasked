@@ -1,0 +1,4 @@
+# Local model-generated reports; don't accidentally commit client text.
+results/
+__pycache__/
+.pytest_cache/
