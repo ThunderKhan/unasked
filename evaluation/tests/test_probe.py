@@ -127,3 +127,57 @@ def test_valid_json_reports_metadata_and_preserves_result():
     assert len(result["result"]["questions"]) == 1
     assert result["diagnostics"]["possible_output_truncation"] is False
     assert result["diagnostics"]["ends_with_json_brace"] is True
+
+
+def test_json_mode_drops_schema_constraint_but_keeps_validation():
+    import json
+    response = SimpleNamespace(
+        message=SimpleNamespace(content=json.dumps({
+            "feature_label": "Booking",
+            "questions": [],
+            "caution": "Developer must review the suggested gaps.",
+        })),
+        done_reason="stop", eval_count=40, prompt_eval_count=100,
+    )
+    client = FakeOllamaClient(response)
+    result = run_model(
+        client=client, model="test", notes="Synthetic booking requirements",
+        decisions=[], mode="baseline", num_ctx=2048, num_predict=512,
+        format_mode="json",
+    )
+    assert client.last_kwargs["format"] == "json"
+    assert "feature_label" in client.last_kwargs["messages"][0]["content"]
+    assert result["validated"] is True
+    assert result["diagnostics"]["format_mode"] == "json"
+
+
+def test_json_mode_invalid_response_keeps_only_safe_metadata():
+    response = SimpleNamespace(
+        message=SimpleNamespace(content='{"feature_label":"01' + "01" * 250),
+        done_reason="length", eval_count=512, prompt_eval_count=100,
+    )
+    client = FakeOllamaClient(response)
+    result = run_model(
+        client=client, model="test", notes="Synthetic booking requirements",
+        decisions=[], mode="baseline", num_ctx=2048, num_predict=512,
+        format_mode="json",
+    )
+    assert result["validated"] is False
+    assert result["diagnostics"]["possible_output_truncation"] is True
+    assert "raw_preview_start" not in result["diagnostics"]
+    assert client.last_kwargs["format"] == "json"
+
+
+def test_explicit_raw_preview_for_fictional_fixtures_only():
+    response = SimpleNamespace(
+        message=SimpleNamespace(content='{"feature_label":"01' + "01" * 250),
+        done_reason="length", eval_count=512, prompt_eval_count=100,
+    )
+    result = run_model(
+        client=FakeOllamaClient(response), model="test",
+        notes="Fictional booking requirements", decisions=[], mode="baseline",
+        num_ctx=2048, num_predict=512, debug_raw_preview=True,
+    )
+    assert result["validated"] is False
+    assert result["diagnostics"]["raw_preview_start"].startswith('{"feature_label"')
+    assert len(result["diagnostics"]["raw_preview_end"]) <= 160
