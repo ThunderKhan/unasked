@@ -82,6 +82,24 @@ $r.cases[0].results.generic_baseline.diagnostics | Format-List
 
 If the run is cut off at the output limit but not clearly repeating, a second test may increase `--num-predict 768`. If it is already repeating tokens, **do not solve by blindly increasing the limit**; revise prompts or compare another model.
 
+## Distinguish schema-constrained generation from JSON mode
+
+If **Gemma hits the output limit at both 512 and 768 tokens**, stop increasing `--num-predict`. Repeated tokens or unusual amounts of whitespace may be involved even when the original short tail detector says `false`. The `done_reason=length` field proves **where generation stopped**, not why the model failed to complete the object.
+
+Ollama supports both a strict `format=<JSON Schema>` and a looser `format="json"` mode. The latter is useful as a **diagnostic comparison**; outputs are still passed through the **same Pydantic validation and safety filters**. The probe's default is still schema-constrained mode.
+
+On the known **synthetic** booking case:
+
+~~~powershell
+python -u -m evaluation.probe --model gemma3:4b --case booking --run generic_baseline --format-mode json --debug-raw-preview --output evaluation/results/gemma-json-diagnostic.json
+~~~
+
+The opt-in `--debug-raw-preview` flag writes the first and last 160 generated characters into the **local ignored report**. Never use it with sensitive or real client notes and don't publish the raw previews. Check whether the model is outputting actual questions, whitespace, repetitions or an unfinished JSON string.
+
+If JSON mode returns a valid meaningful result, the **full complex schema constraint is a likely contributing factor**, and we should simplify that contract and then re-evaluate both models under equivalent conditions. If JSON mode also degenerates, test the model's ability to answer a plain-text question outside the probe (e.g. `ollama run gemma3:4b "For an appointment booking feature, what happens if two visitors choose the same slot? Explain briefly."`) before considering another model.
+
+Do not label the new JSON-mode run directly comparable to earlier **schema-mode** numbers: record `format_mode`, output cap and model with every experiment.
+
 ## What the three sample cases do
 
 | Feature | Known missing decision | Already answered in notes | Follow-up decision used for retest |
