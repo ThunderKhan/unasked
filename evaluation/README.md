@@ -63,6 +63,25 @@ Keep the model name and hardware in the report. A smaller model being fast **doe
 
 **Advanced knobs:** `--num-ctx 2048`, `--num-predict 512`, and `--timeout 180` can be set explicitly. Do not arbitrarily make context or output tiny—truncation could cause invalid JSON and false model-quality failures.
 
+## Diagnosing invalid JSON from Gemma
+
+If a single run fails with `Invalid JSON: EOF while parsing a string`, the model may have reached its `num_predict` cap or become repetitive. The runner now includes `diagnostics.done_reason`, `eval_count`, `possible_output_truncation`, and `repetitive_tail_suspected` in its local report. These are **signals**, not a proof of the cause. The report does not store malformed raw model text.
+
+Re-run **one** baseline request using the updated, more concise baseline instruction:
+
+~~~powershell
+python -u -m evaluation.probe --model gemma3:4b --case booking --run generic_baseline --output evaluation/results/gemma-baseline-diagnostic.json
+~~~
+
+Inspect the metadata:
+
+~~~powershell
+$r = Get-Content evaluation/results/gemma-baseline-diagnostic.json -Raw | ConvertFrom-Json
+$r.cases[0].results.generic_baseline.diagnostics | Format-List
+~~~
+
+If the run is cut off at the output limit but not clearly repeating, a second test may increase `--num-predict 768`. If it is already repeating tokens, **do not solve by blindly increasing the limit**; revise prompts or compare another model.
+
 ## What the three sample cases do
 
 | Feature | Known missing decision | Already answered in notes | Follow-up decision used for retest |
