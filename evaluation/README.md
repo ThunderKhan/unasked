@@ -24,6 +24,45 @@ Run one case while debugging:
 python -m evaluation.probe --model qwen3:4b-instruct --case booking
 ```
 
+## Troubleshooting: the command shows no output or is extremely slow
+
+The first runner version buffered progress until three sequential model requests had completed. This version reports **before and after every call**, uses a default \`num_ctx\` of 2048, limits generated output to 512 tokens, and sets a **180-second HTTP inactivity timeout** per call (not a guaranteed total execution deadline).
+
+**After checking out the updated branch**, stop any old run with **Ctrl+C**, then check model memory placement:
+
+~~~powershell
+ollama ps
+nvidia-smi
+ollama run qwen3:4b-instruct "Reply with one word: READY"
+~~~
+
+The \`PROCESSOR\` column in \`ollama ps\` shows GPU, CPU or mixed offload while the model is loaded. If the one-word Ollama test fails or stalls, fix the Ollama/GPU environment first; the Unasked runner is not the cause. Quit unnecessary GPU-heavy apps. If you interrupted a problematic model request, you may free it with \`ollama stop qwen3:4b-instruct\`.
+
+**Run exactly one M0 inference**, not the full nine-request experiment:
+
+~~~powershell
+python -u -m evaluation.probe --model qwen3:4b-instruct --case booking --run unasked_initial
+~~~
+
+The output should immediately begin with the model, context budget, and \`Starting booking / unasked_initial ...\`. If that succeeds, run all three variants for **one case**:
+
+~~~powershell
+python -u -m evaluation.probe --model qwen3:4b-instruct --case booking
+~~~
+
+Only then run the complete three-case experiment.
+
+If it reports a timeout or \`ollama ps\` shows mostly CPU and generation is impractically slow, try the smaller **comparison candidate**:
+
+~~~powershell
+ollama pull qwen3:1.7b
+python -u -m evaluation.probe --model qwen3:1.7b --case booking --run unasked_initial
+~~~
+
+Keep the model name and hardware in the report. A smaller model being fast **does not mean it is good enough** at detecting missing requirements. We still need human review.
+
+**Advanced knobs:** \`--num-ctx 2048\`, \`--num-predict 512\`, and \`--timeout 180\` can be set explicitly. Do not arbitrarily make context or output tiny—truncation could cause invalid JSON and false model-quality failures.
+
 ## What the three sample cases do
 
 | Feature | Known missing decision | Already answered in notes | Follow-up decision used for retest |
