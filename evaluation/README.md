@@ -100,6 +100,29 @@ If JSON mode returns a valid meaningful result, the **full complex schema constr
 
 Do not label the new JSON-mode run directly comparable to earlier **schema-mode** numbers: record `format_mode`, output cap and model with every experiment.
 
+## Valid JSON, wrong fields: Gemma's JSON-mode follow-up
+
+In the observed Gemma booking generic baseline, Ollama reported `done_reason=stop` after 235 generated tokens, and the response ended with a closing brace. The preview suggests it placed `caution` inside a question instead of the required top-level field. A closing brace alone is **not proof of valid JSON**. This runner now checks JSON syntax separately from Pydantic field validation, and reports sanitized `schema_errors` (only field path and type, no model content).
+
+The JSON-mode formatting instructions now include a short **structural** example. Both the generic and Unasked prompts use the same example; these formatting changes are not evidence of improved question relevance.
+
+Run the same fictional booking baseline once:
+
+~~~powershell
+git pull --ff-only
+python -m pytest evaluation/tests -q
+python -u -m evaluation.probe --model gemma3:4b --case booking --run generic_baseline --format-mode json --output evaluation/results/gemma-json-schema-fix.json
+~~~
+
+If the baseline still fails, inspect **which keys** are wrong:
+
+~~~powershell
+$r = Get-Content evaluation/results/gemma-json-schema-fix.json -Raw | ConvertFrom-Json
+$r.cases[0].results.generic_baseline.diagnostics | ConvertTo-Json -Depth 8
+~~~
+
+If the result validates, review each question for unansweredness, relevance and hallucinated premises. In particular, the fictional booking notes **already specify that cancellation is not allowed**, and double-booking remains unresolved. A structurally valid question about whether cancellation is allowed would still be an AI-quality failure.
+
 ## What the three sample cases do
 
 | Feature | Known missing decision | Already answered in notes | Follow-up decision used for retest |
