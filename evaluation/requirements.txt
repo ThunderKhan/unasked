@@ -1,0 +1,4 @@
+# M0: inference client and schema validation. Keep separate from production dependencies.
+ollama>=0.4,<1
+pydantic>=2,<3
+pytest>=8,<10

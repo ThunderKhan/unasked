@@ -1,0 +1,50 @@
+[
+  {
+    "id": "booking",
+    "feature": "Appointment booking",
+    "notes": "We want visitors to choose an available appointment time on our site. They will receive an email when their booking is confirmed. Staff need to see all bookings. Customers cannot cancel appointments after confirmation.",
+    "gold_missing_topics": [
+      {"gap_key": "booking.double_booking", "description": "What happens if two visitors attempt to reserve the same slot?"},
+      {"gap_key": "booking.availability_source", "description": "Who defines and updates which time slots are available?"}
+    ],
+    "explicitly_answered_topics": ["booking.cancellation_policy"],
+    "followup_decision": {
+      "gap_key": "booking.double_booking",
+      "question": "Can two visitors confirm the same slot?",
+      "status": "answered",
+      "detail": "Only one confirmed booking per slot; a later visitor must choose another slot."
+    }
+  },
+  {
+    "id": "registration",
+    "feature": "Account registration",
+    "notes": "New customers register using an email and password. They must verify their email address before using the account. After signing up, the account starts with the member role.",
+    "gold_missing_topics": [
+      {"gap_key": "registration.password_recovery", "description": "How can a customer recover a lost password?"},
+      {"gap_key": "registration.duplicate_email", "description": "What should happen if the email is already registered?"}
+    ],
+    "explicitly_answered_topics": ["registration.email_verification", "registration.default_role"],
+    "followup_decision": {
+      "gap_key": "registration.password_recovery",
+      "question": "How do customers recover forgotten passwords?",
+      "status": "answered",
+      "detail": "Use a one-time password-reset link sent to the verified email."
+    }
+  },
+  {
+    "id": "checkout",
+    "feature": "Checkout",
+    "notes": "Customers can review their cart, enter a delivery address, pay online, and get an order confirmation. An order is created only after the payment provider confirms payment success. Shipping is available only in India.",
+    "gold_missing_topics": [
+      {"gap_key": "checkout.payment_failure", "description": "What happens to the cart and checkout when payment fails or is abandoned?"},
+      {"gap_key": "checkout.shipping_charges", "description": "How are shipping charges calculated and shown before paying?"}
+    ],
+    "explicitly_answered_topics": ["checkout.order_creation", "checkout.shipping_countries"],
+    "followup_decision": {
+      "gap_key": "checkout.payment_failure",
+      "question": "What happens when an online payment fails?",
+      "status": "answered",
+      "detail": "Preserve the cart and allow the customer to retry without creating an order."
+    }
+  }
+]
