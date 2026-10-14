@@ -7,7 +7,7 @@ status: draft
 
 **Product:** A single-feature client-discovery workbench that identifies the questions a software developer missed.
 
-**Basis:** `scope.md > The Unique Kernel`, `Who It's For`, `The Core Loop`, and `The POC Boundary`.
+**Basis:** `scope.md > The Unique Kernel`, `Who It's For`, `The Core Loop`, and `The POC Boundary`. See [user profiles](users.md) for primary and secondary roles and [the journey](user-journey.md) for the one-feature interaction.
 
 > Proposed interaction details below are **draft recommendations**, not decisions already approved by the builder.
 

@@ -196,11 +196,18 @@ unasked/
 ├── evaluation/
 │   ├── cases.json                  # Curated synthetic notes + ground truth
 │   └── evaluate.py                 # Baseline vs Unasked comparison
-├── docs/              # Planning documents for the DEV challenge
+├── docs/                         # DEV Challenge planning documentation
+│   ├── README.md
 │   ├── scope.md
+│   ├── users.md
+│   ├── user-journey.md
 │   ├── prd.md
+│   ├── mvp.md
 │   ├── spec.md
-│   └── mvp.md
+│   ├── ai-quality.md
+│   ├── implementation-plan.md
+│   ├── user-validation.md
+│   └── decisions-and-risks.md
 ├── .gitignore
 └── README.md
 ```
