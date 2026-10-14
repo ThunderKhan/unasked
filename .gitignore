@@ -1,0 +1,21 @@
+# Private learner notes (not intended for public git commits)
+/docs/learner-profile.md
+
+# Local credentials
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# JS tooling
+node_modules/
+dist/
+.vite/
+
+# Local artifacts
+.DS_Store
