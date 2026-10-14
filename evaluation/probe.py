@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 ROOT = Path(__file__).resolve().parent
 GAP_KEY_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
@@ -73,16 +73,28 @@ Do not repeat characters or JSON objects.
 """
 
 
-JSON_OUTPUT_GUIDE = """Return one JSON object with these keys:
-feature_label: string
-questions: array of 0 to 3 objects, each with:
-  gap_key: string in area.topic format
-  question: one short sentence
-  why_it_matters: one short sentence
-  source_excerpt: an exact excerpt from notes or null
-  priority: integer from 1 to 3
-caution: short string
-Do not use Markdown or output text outside the JSON object.
+JSON_OUTPUT_GUIDE = """Return ONE JSON object following this EXACT structure:
+{
+  "feature_label": "Feature name",
+  "questions": [
+    {
+      "gap_key": "feature.topic",
+      "question": "One specific unanswered question?",
+      "why_it_matters": "One short implementation consequence.",
+      "source_excerpt": null,
+      "priority": 1
+    }
+  ],
+  "caution": "Verify suggestions with the client."
+}
+The example shows FIELD PLACEMENT only; replace all example values using the notes.
+"caution" appears ONCE, at the TOP LEVEL, NEVER inside a question object.
+Each question has exactly: gap_key, question, why_it_matters,
+source_excerpt, priority. No other question fields.
+The questions array may contain ZERO to THREE question objects.
+source_excerpt must be an exact substring of the provided notes or null.
+Questions should concern unanswered decisions, not already settled facts.
+Respond with JSON ONLY. Do not add Markdown or commentary.
 """
 
 
@@ -162,14 +174,41 @@ def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode
         diagnostics["raw_preview_start"] = raw[:160]
         diagnostics["raw_preview_end"] = raw[-160:]
     try:
-        parsed = Analysis.model_validate_json(raw)
-    except Exception as exc:
-        # Do not store model text or validation exception input: either can echo
-        # confidential notes if users later substitute real data for our fixtures.
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        # Do not store raw response, exception input, or user-provided notes.
+        diagnostics["json_syntax_valid"] = False
+        diagnostics["syntax_error_position"] = getattr(exc, "pos", None)
         return {
             "elapsed_seconds": elapsed, "validated": False,
-            "error_type": type(exc).__name__,
-            "error": "Model output was not valid JSON for the required schema.",
+            "error_type": "JSONDecodeError",
+            "error": "Model output was not syntactically valid JSON.",
+            "diagnostics": diagnostics,
+        }
+
+    diagnostics["json_syntax_valid"] = True
+    try:
+        parsed = Analysis.model_validate(payload)
+    except ValidationError as exc:
+        # Only record sanitized field locations and error codes. Never record
+        # validation inputs, model text or arbitrary extra field names.
+        expected_fields = {
+            "feature_label", "questions", "caution", "gap_key", "question",
+            "why_it_matters", "source_excerpt", "priority",
+        }
+        errors = []
+        for item in exc.errors(include_input=False, include_url=False)[:12]:
+            safe_path = [
+                segment if isinstance(segment, int) or segment in expected_fields
+                else "[unexpected_field]"
+                for segment in item["loc"]
+            ]
+            errors.append({"path": safe_path, "type": item["type"]})
+        diagnostics["schema_errors"] = errors
+        return {
+            "elapsed_seconds": elapsed, "validated": False,
+            "error_type": "ValidationError",
+            "error": "Model output is JSON but does not match the required schema.",
             "diagnostics": diagnostics,
         }
     safe = sanitize(parsed, notes, decisions)
