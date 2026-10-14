@@ -30,6 +30,8 @@ As a developer talking to a client about one web feature, I paste my notes and g
 
 **Don't build:** recording, speech-to-text, full meeting lifecycle, asked/deferred tracking, chat, document/PDF export, feature dependency maps, accounts, database, billing, multiple agents, fine-tuning, CRM integrations.
 
+The executable task order, dependencies and exit tests are in [implementation-plan.md](implementation-plan.md). Question scoring and output safety rules are in [ai-quality.md](ai-quality.md).
+
 ## MVP Delivery Slices
 
 ### M0 — Feasibility Before UI

@@ -10,12 +10,16 @@ Instead of summarizing the conversation or generating a PRD, it helps the develo
 
 ## Planning documents
 
+**[Open the complete documentation index](docs/README.md)** for the recommended reading order and research rationale.
+
 | Document | Purpose |
 | --- | --- |
-| [Scope](docs/scope.md) | User, unique idea, one core loop, and strict exclusions |
-| [PRD](docs/prd.md) | One-screen journey, behaviors, important error states, acceptance criteria |
-| [Technical spec](docs/spec.md) | Proposed architecture, data contract, files and failure handling |
-| [MVP & validation](docs/mvp.md) | Delivery slices, definition of done, demo, and comparison against baselines |
+| [Scope](docs/scope.md) | Kernel, target problem, and hard scope boundary |
+| [Users](docs/users.md) · [User journey](docs/user-journey.md) | Primary/secondary users and exact one-feature interaction |
+| [PRD](docs/prd.md) · [MVP](docs/mvp.md) | Behaviors, acceptance criteria, measurable definition of done |
+| [Technical spec](docs/spec.md) · [AI quality](docs/ai-quality.md) | Proposed architecture and rules for reliable model output |
+| [Implementation plan](docs/implementation-plan.md) | M0–M3 build tasks, prerequisites and exit tests |
+| [User validation](docs/user-validation.md) · [Decisions and risks](docs/decisions-and-risks.md) | Buyer discovery, assumptions, privacy and remaining choices |
 
 **The MVP:** paste notes about one software feature → get 0–3 specific unanswered questions with reasons → record an answer or dismiss a question → re-analyze.
 
