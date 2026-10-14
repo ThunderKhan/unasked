@@ -97,7 +97,7 @@ def test_truncated_and_repetitive_json_returns_safe_diagnostics():
     assert result["diagnostics"]["possible_output_truncation"] is True
     assert result["diagnostics"]["repetitive_tail_suspected"] is True
     assert result["diagnostics"]["eval_count"] == 512
-    assert "01" not in str(result)
+    assert raw not in str(result)
     assert client.last_kwargs["options"]["num_predict"] == 512
 
 
