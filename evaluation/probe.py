@@ -73,6 +73,19 @@ Do not repeat characters or JSON objects.
 """
 
 
+JSON_OUTPUT_GUIDE = """Return one JSON object with these keys:
+feature_label: string
+questions: array of 0 to 3 objects, each with:
+  gap_key: string in area.topic format
+  question: one short sentence
+  why_it_matters: one short sentence
+  source_excerpt: an exact excerpt from notes or null
+  priority: integer from 1 to 3
+caution: short string
+Do not use Markdown or output text outside the JSON object.
+"""
+
+
 def sanitize(analysis: Analysis, notes: str, decisions: list[Decision]) -> dict:
     """Enforce deterministic restrictions. Does NOT prove semantic correctness."""
     resolved = {d.gap_key for d in decisions}
@@ -103,9 +116,16 @@ def sanitize(analysis: Analysis, notes: str, decisions: list[Decision]) -> dict:
     }
 
 
-def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode: str, num_ctx: int, num_predict: int) -> dict:
+def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode: str,
+              num_ctx: int, num_predict: int, format_mode: str = "schema",
+              debug_raw_preview: bool = False) -> dict:
     """Call Ollama once and validate the output. Never return a fake success."""
     system = SYSTEM_UNASKED if mode == "unasked" else SYSTEM_BASELINE
+    if format_mode not in ("schema", "json"):
+        raise ValueError("format_mode must be schema or json")
+    if format_mode == "json":
+        system += "\n" + JSON_OUTPUT_GUIDE
+    response_format = Analysis.model_json_schema() if format_mode == "schema" else "json"
     user_data = {"notes": notes, "decisions": [d.model_dump() for d in decisions]}
     start = time.perf_counter()
     response = client.chat(
@@ -114,7 +134,7 @@ def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode
             {"role": "system", "content": system},
             {"role": "user", "content": json.dumps(user_data, ensure_ascii=False)},
         ],
-        format=Analysis.model_json_schema(),
+        format=response_format,
         options={"temperature": 0, "num_ctx": num_ctx, "num_predict": num_predict},
         stream=False,
     )
@@ -128,6 +148,7 @@ def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode
         "prompt_eval_count": getattr(response, "prompt_eval_count", None),
         "response_characters": len(raw),
         "output_limit": num_predict,
+        "format_mode": format_mode,
         "possible_output_truncation": (
             done_reason == "length" or
             (eval_count is not None and eval_count >= num_predict)
@@ -135,6 +156,11 @@ def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode
         "ends_with_json_brace": raw.rstrip().endswith("}"),
         "repetitive_tail_suspected": bool(re.search(r"(.{1,4})\1{6,}$", raw[-128:])),
     }
+    # Explicitly opt-in and ONLY with the repository's synthetic test fixtures:
+    # even a short model excerpt can echo a real client's private notes.
+    if debug_raw_preview:
+        diagnostics["raw_preview_start"] = raw[:160]
+        diagnostics["raw_preview_end"] = raw[-160:]
     try:
         parsed = Analysis.model_validate_json(raw)
     except Exception as exc:
@@ -151,7 +177,9 @@ def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode
             "diagnostics": diagnostics, "result": safe}
 
 
-def run_case(*, client, model: str, fixture: dict, num_ctx: int, num_predict: int, selected_run: str) -> dict:
+def run_case(*, client, model: str, fixture: dict, num_ctx: int, num_predict: int,
+             selected_run: str, format_mode: str = "schema",
+             debug_raw_preview: bool = False) -> dict:
     """Run a generic baseline and a focused prompt on the same synthetic notes."""
     notes = fixture["notes"]
     output = {
@@ -176,6 +204,7 @@ def run_case(*, client, model: str, fixture: dict, num_ctx: int, num_predict: in
             output["results"][label] = run_model(
                 client=client, model=model, notes=notes, decisions=decisions,
                 mode=mode, num_ctx=num_ctx, num_predict=num_predict,
+                format_mode=format_mode, debug_raw_preview=debug_raw_preview,
             )
             run = output["results"][label]
             if run["validated"]:
@@ -201,6 +230,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Unasked M0 Ollama feasibility probe")
     parser.add_argument("--model", default="qwen3:4b-instruct")
     parser.add_argument("--run", default="all", choices=["all", "generic_baseline", "unasked_initial", "unasked_after_answer"], help="Limit inference calls during debugging")
+    parser.add_argument("--format-mode", default="schema", choices=["schema", "json"],
+                        help="Schema-constrained output (default) or Ollama JSON mode to isolate schema problems")
+    parser.add_argument("--debug-raw-preview", action="store_true",
+                        help="Save first/last 160 response characters in diagnostics; ONLY use fictional notes")
     parser.add_argument("--timeout", type=float, default=180, help="HTTP inactivity timeout per call in seconds, not a guaranteed total deadline")
     parser.add_argument("--num-ctx", type=int, default=2048, help="Ollama context size; keep small on 4GB VRAM")
     parser.add_argument("--num-predict", type=int, default=512, help="Maximum generated tokens per call")
@@ -219,15 +252,17 @@ def main() -> int:
         parser.error("--timeout must be > 0, --num-ctx >= 1024, and --num-predict >= 128")
     client = Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=args.timeout)
     print(f"Unasked M0 | model={args.model} | cases={len(cases)} | run={args.run} | "
-          f"num_ctx={args.num_ctx} | num_predict={args.num_predict} | HTTP timeout={args.timeout}s",
+          f"format={args.format_mode} | num_ctx={args.num_ctx} | num_predict={args.num_predict} | HTTP timeout={args.timeout}s",
           flush=True)
     print("Local model inference can be slow. Check 'ollama ps' in another terminal for CPU/GPU placement.", flush=True)
     results = [run_case(client=client, model=args.model, fixture=c,
                         num_ctx=args.num_ctx, num_predict=args.num_predict,
-                        selected_run=args.run) for c in cases]
+                        selected_run=args.run, format_mode=args.format_mode,
+                        debug_raw_preview=args.debug_raw_preview) for c in cases]
     output = {
         "experiment": "M0 local model feasibility — not independently human-scored",
         "model": args.model,
+        "format_mode": args.format_mode,
         "model_host": "locally configured Ollama",
         "cases": results,
     }
