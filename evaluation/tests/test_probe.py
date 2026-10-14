@@ -64,3 +64,66 @@ def test_invalid_shape_rejected():
 def test_empty_answer_rejected():
     with pytest.raises(ValidationError):
         Decision(gap_key="booking.double_booking", question="What happens when slots overlap?", status="answered", detail="")
+
+
+from types import SimpleNamespace
+from evaluation.probe import run_model
+
+
+class FakeOllamaClient:
+    def __init__(self, response):
+        self.response = response
+        self.last_kwargs = None
+
+    def chat(self, **kwargs):
+        self.last_kwargs = kwargs
+        return self.response
+
+
+def test_truncated_and_repetitive_json_returns_safe_diagnostics():
+    raw = '{"feature_label":"Booking","questions":[' + "01" * 260
+    response = SimpleNamespace(
+        message=SimpleNamespace(content=raw),
+        done_reason="length",
+        eval_count=512,
+        prompt_eval_count=128,
+    )
+    client = FakeOllamaClient(response)
+    result = run_model(
+        client=client, model="test", notes="synthetic booking notes",
+        decisions=[], mode="baseline", num_ctx=2048, num_predict=512,
+    )
+    assert result["validated"] is False
+    assert result["diagnostics"]["possible_output_truncation"] is True
+    assert result["diagnostics"]["repetitive_tail_suspected"] is True
+    assert result["diagnostics"]["eval_count"] == 512
+    assert "01" not in str(result)
+    assert client.last_kwargs["options"]["num_predict"] == 512
+
+
+def test_valid_json_reports_metadata_and_preserves_result():
+    import json
+    valid = {
+        "feature_label": "Booking",
+        "questions": [{
+            "gap_key": "booking.double_booking",
+            "question": "Can both customers reserve the same time slot?",
+            "why_it_matters": "Could allow duplicate confirmed bookings.",
+            "source_excerpt": None,
+            "priority": 1,
+        }],
+        "caution": "Developer must confirm the decision.",
+    }
+    response = SimpleNamespace(
+        message=SimpleNamespace(content=json.dumps(valid)),
+        done_reason="stop", eval_count=98, prompt_eval_count=100,
+    )
+    result = run_model(
+        client=FakeOllamaClient(response), model="test",
+        notes="Bookings are available online", decisions=[], mode="unasked",
+        num_ctx=2048, num_predict=512,
+    )
+    assert result["validated"] is True
+    assert len(result["result"]["questions"]) == 1
+    assert result["diagnostics"]["possible_output_truncation"] is False
+    assert result["diagnostics"]["ends_with_json_brace"] is True
