@@ -133,7 +133,7 @@ def run_model(*, client, model: str, notes: str, decisions: list[Decision], mode
             (eval_count is not None and eval_count >= num_predict)
         ),
         "ends_with_json_brace": raw.rstrip().endswith("}"),
-        "repetitive_tail_suspected": bool(re.search(r"(.{1,4})\\1{6,}$", raw[-128:])),
+        "repetitive_tail_suspected": bool(re.search(r"(.{1,4})\1{6,}$", raw[-128:])),
     }
     try:
         parsed = Analysis.model_validate_json(raw)
